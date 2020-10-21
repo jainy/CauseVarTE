@@ -61,8 +61,8 @@ if not args.len:
 
 def comparetwolines(llist1, llist2, lline1, lline2, lintyp,lenbp):
 
-	print(llist1, llist2, lintyp,lenbp)
-	print("secondstation")
+	#print(llist1, llist2, lintyp,lenbp)
+	#print("secondstation")
 
 
 
@@ -201,7 +201,7 @@ def comparetwolines(llist1, llist2, lline1, lline2, lintyp,lenbp):
 					# print("The two genotypes are not equal: gt1 is", gt1, "gt2 is", gt2)
 					gtdata1 = gt1.group(1)
 					gtdata2 = gt2.group(1)
-					print(gtdata1, gtdata2)
+					#print(gtdata1, gtdata2)
 					predgt1 = gt1.group(1).split(":")
 					predgt2 = gt2.group(1).split(":")
 					if len(predgt1) == 2 and len(predgt2) == 1:
@@ -209,7 +209,7 @@ def comparetwolines(llist1, llist2, lline1, lline2, lintyp,lenbp):
 					elif len(predgt2) == 2 and len(predgt1) == 1:
 						colsf.append(cols2[i])
 					elif len(predgt2) == len(predgt1):
-						print(predgt1[0], predgt2[0])
+						#print(predgt1[0], predgt2[0])
 						if predgt1[0] == predgt2[0]:
 
 							# cols1[i] = cols1[i] + "_twogt"
@@ -238,7 +238,7 @@ def comparetwolines(llist1, llist2, lline1, lline2, lintyp,lenbp):
 				#
 				i += 1
 			linef = "\t".join(colsf)  #
-			print(linef)
+			#print(linef)
 			#
 			#     # compare f to line3
 			return ("merged", linef)
@@ -301,7 +301,7 @@ linenumber = 0
 storelines ={}
 lastline = subprocess.check_output('tail -n 1 {}'.format(args.table),shell = True)
 lastline = lastline.decode('utf-8')
-print(lastline)
+#print(lastline)
 colsp = lastline.split("\t")
 lastlinelist = [colsp[0], colsp[1], colsp[2], colsp[3]]
 nuofconflicts = 0
@@ -406,7 +406,7 @@ with open(args.table) as file_obj:
 					svmerged[uniqueidf] = modline
 					linef = modline
 					# print("first and second lines merged now")
-					print("I am comparing merged line and line 3 now", linef,"\n",line3)
+					#print("I am comparing merged line and line 3 now", linef,"\n",line3)
 					(result, modline) = comparetwolines(linelistf, linelist3, linef, line3, "formatted",args.len)
 					#print(linelist3)
 

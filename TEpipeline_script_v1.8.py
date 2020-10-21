@@ -1646,7 +1646,7 @@ try:
             else:
                 continue
             # print(found)
-    if count == 1:
+    if count == 1 or count > 1:
         print("MELT preprocess of bams already done, \n")
     else:
         print("I am here in step1,\n")
@@ -1773,16 +1773,16 @@ try:
             try:
                 print("I am here in step6")  # workspace needs to be emptied then only Transurveyor runs
 
-                Run_transurveyor(transpath, SoftBamDir, outputdir, Refergenome, cov_dict, nupro, bwapath,
+                Run_transurveyor(trasuveypath, SoftBamDir, outputdir, Refergenome, cov_dict, nupro, bwapath,
                              samtoolspath)
-                transurveyor_filter(cov_dict, transpath, outputdir, nupro)
+                transurveyor_filter(cov_dict, trasuveypath, outputdir, nupro)
             except:
                 print("I am here in step 6.1")
                 fix_bampath = Fixmate_Transur(list_bamid, SoftBamDir, picardpath, nupro, outputdir, samtoolspath)
                 fix_bampath = outputdir + "/FixedmateBAMs"
-                Run_transurveyor(transpath, fix_bampath, outputdir, Refergenome, cov_dict, nupro, bwapath,
+                Run_transurveyor(trasuveypath, fix_bampath, outputdir, Refergenome, cov_dict, nupro, bwapath,
                              samtoolspath)
-                transurveyor_filter(cov_dict, transpath, outputdir, nupro)
+                transurveyor_filter(cov_dict, trasuveypath, outputdir, nupro)
 
 
 except:
