@@ -26,7 +26,8 @@ changelog = '''changelog:
   			intrduced the ability to alter the length of the bp to merged
   			takes the MELT genotype if available
   -v 1.3    Sep 10 2020	
-  			Not to merge, if the two different of insertions are nearby especially identified by MELT	
+  			Not to merge, if the two different of insertions are nearby especially identified by MELT 
+  			Todo: Need to think about how to check some of the merged genotypes with conflict genotypes	
 			
 '''
 usage ='''
@@ -109,7 +110,7 @@ def comparetwolines(llist1, llist2, lline1, lline2, lintyp,lenbp):
 			# 5 is TSD in melt score in TR
 			iinfo1 = cols1[5]
 			iinfo2 = cols2[5]
-			print(iinfo1, iinfo2)
+			#print(iinfo1, iinfo2)
 			# cont_digit1 = any(map(str.isdigit,iinfo1))
 			# cont_digit2 = any(map(str.isdigit, iinfo2))
 			if iinfo1 == iinfo2:

@@ -28,6 +28,7 @@ changelog = '''changelog:
    # introducing config file and move the arguments from given at the command line
    # Todo to incorporate target site deletions
    # To do, instead of serial numbers provide individual names
+   # use parallel for AnnotSV analysis /TSD analysis
     
 
 '''
@@ -62,7 +63,8 @@ config.read(args.configfile)
 
 ###accessing toolpaths###########################
 musclepath = config.get('Paths','muscle')
-AnSVpath = config.get('Paths','annotSV')
+AnnSVpath = config.get('Paths','annotSV')
+#print(AnnSVpath)
 blastpath = config.get('Paths','blast')
 meltpath = config.get('Paths','melt')
 picardpath = config.get('Paths','picard')
@@ -99,7 +101,7 @@ colvalue = config.get('AnnotSV','col_valu')
 
 ###accessing Processing Conditions##############
 consensus = config.getboolean('proconditions','align')
-
+mergelen = config.getint('proconditions','mergedbp')
 
 ##########################################################
 
@@ -730,7 +732,7 @@ def parse_Transurveyor_out(outdir, coverage_dict):
                             dictallbrkpt[Key_F] = basic_list
 
                     else:
-                        print("breakpoints does not transposition\n")
+                        print("breakpoints does not transposition\n")# Todo: write this to a separate file andred were not supported:5000
                     #print(IDlist, "Here step2\n")
                     IDlist = []
                     #print(IDlist, "Here step3\n")
@@ -827,6 +829,7 @@ def parse_Transurveyor_out(outdir, coverage_dict):
         f_obj.write("parsed Transurveyor output" + "\n")
 def convert_dict_to_dataframe_print(dicta, filename, header,outdir):
     print("converting concatenated, sorted MELT Transurveyor output to pandas")
+    print(filename)
     outfilobj = open(filename + ".bef_merge.bed", "w+")
     print("create data from dictionary,\n")
     dfObj = pd.DataFrame.from_dict(dicta, orient='index', columns=["SVLine"])  # creating using dict_Keys as index
@@ -836,6 +839,8 @@ def convert_dict_to_dataframe_print(dicta, filename, header,outdir):
     newcol = dfObj["SVLine"].str.split("\t", expand=True, )
     #print(header)
     colnames = header.split("\t")
+    totcolus = int(len(colnames))
+    print(f"total number of columns is {totcolus}")
     #print(colnames)
     newcol.columns = colnames
 
@@ -855,9 +860,14 @@ def convert_dict_to_dataframe_print(dicta, filename, header,outdir):
     outfilobj.close()
     print(" Now Merging the MELT Transurveyor output and print in bed format ")
     mergedfile = filename + ".merge.sorted.bed"
-    cmd = "python3 " + direname + "/Merge_TEcalls_genotypes_v1.3.py -t " + filename + ".bef_merge.bed -c 12 -l 260 -o "+ mergedfile
-    #os.system(cmd)
-    r = subprocess.run(cmd,shell = True)
+    #print(f"python3 {direname}/Merge_TEcalls_genotypes_v1.3.py -t {filename}.bef_merge.bed -c {totcolus} -l {mergelen} -o {mergedfile}")
+    #Todo some close by insertions are merged, needs to modify the script to prevent that or lower the 260 bp to lower
+    #or may be I can avoid running ANNOTSV twice run it only once.
+    r = subprocess.run(
+        'python3 {}/Merge_TEcalls_genotypes_v1.3.py -t {}.bef_merge.bed -c {} -l {} -o {} '.format(
+            direname, filename, totcolus,mergelen, mergedfile
+        ),
+        shell=True)
 
     if r.returncode == 0:
         with open(outdir + "/status_check" + "/status_check_file.txt", "a+") as f_obj:
@@ -912,23 +922,37 @@ def Run_annotSV(AnSVpath,SVinputfile,outdir,genomver,SVminsize):
         genomver = "GRCh38"
     print(genomver)
     print(SVminsize)
+    # if 'ANNOTSV' in os.environ:
+    #     print(f"AnnotSV is  set")
+    # else:
+    #     print(f"AnnotSV is not set")
     os.environ['ANNOTSV'] = AnSVpath
+    # if 'ANNOTSV' in os.environ:
+    #     print(f"AnnotSV is  set")
+    # else:
+    #     print(f"AnnotSV is not set")
     AnnotSVout = outdir + "/AnnotSVout"
     check_dir_exists(AnnotSVout)
     inputfilepath = SVinputfile.split("/")[-1]
     #outfilename = SVinputfile[:-4]
     outfilename = inputfilepath[:-4]
 
+
     outputffulname = AnnotSVout + "/"+ outfilename + ".annotated.tsv"
     outputallname =  AnnotSVout+"all" + "/"+ outfilename + ".annotated.tsv"
+    print(
+        'AnnotSV -SVinputFile {} -bedtools {} -outputDir {}  -genomeBuild {} -typeOfAnnotation {} -SVminSize {} -svtBEDcol {}  &> {} '.format(
+            SVinputfile, bedtoolspath + "/bedtools", AnnotSVout, genomver, "full", SVminsize, 4,
+                         AnnotSVout + "/AnnotSV.log"))
+
     p = subprocess.run(
         'AnnotSV -SVinputFile {} -bedtools {} -outputDir {}  -genomeBuild {} -typeOfAnnotation {} -SVminSize {} -svtBEDcol {}  &> {} '.format(
-            SVinputfile, bedtoolp +"/bedtools", AnnotSVout,  genomver, "full", SVminsize, 4,  AnnotSVout + "/AnnotSV.log",
+            SVinputfile, bedtoolspath +"/bedtools", AnnotSVout,  genomver, "full", SVminsize, 4,  AnnotSVout + "/AnnotSV.log",
         ),
         shell=True)
     q = subprocess.run(
         'AnnotSV -SVinputFile {} -bedtools {} -outputDir {} -genomeBuild {} -SVminSize {} -svtBEDcol {} &> {} '.format(
-            SVinputfile, bedtoolp + "/bedtools", AnnotSVout + "all",  genomver, SVminsize, 4,  AnnotSVout + "/AnnotSV.log",
+            SVinputfile, bedtoolspath + "/bedtools", AnnotSVout + "all",  genomver, SVminsize, 4,  AnnotSVout + "/AnnotSV.log",
         ),
         shell=True)
     if p.returncode == 0 and q.returncode == 0:
@@ -937,6 +961,9 @@ def Run_annotSV(AnSVpath,SVinputfile,outdir,genomver,SVminsize):
         return outputffulname, outputallname
     else:
         raise subprocess.CalledProcessError()
+
+    print('AnnotSV -SVinputFile {} -bedtools {} -outputDir {}  -genomeBuild {} -typeOfAnnotation {} -SVminSize {} -svtBEDcol {}  &> {} '.format(
+            SVinputfile, bedtoolp +"/bedtools", AnnotSVout,  genomver, "full", SVminsize, 4,  AnnotSVout + "/AnnotSV.log"))
 
 def parse_AnnotSV(annotSVoutfile,totalNumI,scorenu,segrlist,noseglist,outdir,genomver):
     print("inside parse AnnotSV")
@@ -1643,10 +1670,11 @@ try:
             found = re.search(r"MELT preprocess completed", line)
             if found:
                 count = 1
+                break
             else:
                 continue
             # print(found)
-    if count == 1 or count > 1:
+    if count == 1 :
         print("MELT preprocess of bams already done, \n")
     else:
         print("I am here in step1,\n")
@@ -1655,11 +1683,12 @@ try:
 except:
     print(
         "the status file is not found. It should be created with the creation of the symlink. However proceeding to MELT-processing...")
+    exit()
 
     # run_MELT_SPLIT_preprocess(outputdir, meltpath, Refergenome, cov_dict, SoftBamDir, numem, nupro)
 # Run MELT Indivanalysis
-run_MELT_SPLIT_preprocess(outputdir, meltpath, Refergenome, cov_dict, SoftBamDir, numem,
-                                  nupro)
+#run_MELT_SPLIT_preprocess(outputdir, meltpath, Refergenome, cov_dict, SoftBamDir, numem,
+                                  #nupro)
 try:
     with open(outputdir + "/status_check" + "/status_check_file.txt", 'r') as f:
         count = 0
@@ -1668,6 +1697,7 @@ try:
             found = re.search(r"MELT individual analysis completed", line)
             if found:
                 count = 1
+                break
             else:
                 continue
             # print(found)
@@ -1680,6 +1710,7 @@ try:
 except:
     print(
         "the status file is not found or failed to run individual analysis....")
+    exit()
     # run_MELT_SPLIT_indivanal(meltpath, Refergenome, cov_dict, SoftBamDir, numem, nupro,
     # outputdir, hg_ver)
 
@@ -1692,6 +1723,7 @@ try:
             found = re.search(r"MELT group analysis completed", line)
             if found:
                 count = 1
+                break
             else:
                 continue
             # print(found)
@@ -1705,6 +1737,7 @@ try:
 except:
     print(
         "the status file is not found or group analysis could not be performed,\n  ")
+    exit()
 
     # run_MELT_split_groupanal(meltpath, Refergenome, numem, nupro, outputdir, hg_ver)
 
@@ -1717,6 +1750,7 @@ try:
             found = re.search(r"MELT Genotype completed", line)
             if found:
                 count = 1
+                break
             else:
                 continue
             # print(found)
@@ -1730,6 +1764,7 @@ try:
 except:
     print(
         "the status file is not found or genotyping step cannot be performed,\n ")
+    exit()
 
     # run_MELT_split_genotype(meltpath, Refergenome, numem, nupro, outputdir, hg_ver)
 
@@ -1742,6 +1777,7 @@ try:
             found = re.search(r"MELT Make VCF completed", line)
             if found:
                 count = 1
+                break
             else:
                 continue
             # print(found)
@@ -1753,6 +1789,7 @@ try:
             run_MELT_split_makeVCF(meltpath, Refergenome, numem, nupro, outputdir, hg_ver)
 except:
     print("the status file is not found or MakeVCF step cannot be performed,\n ")
+    exit()
 
 # Run Transurveyor
 try:
@@ -1763,6 +1800,7 @@ try:
             found = re.search(r"Transurveyor filter completed", line)
             if found:
                 count = 1
+                break
             else:
                 continue
             # print(found)
@@ -1788,6 +1826,7 @@ try:
 except:
     print(
         "the status file is not found or Transurveyor failed cannot be performed,\n ")
+    exit()
 ####Parsing MELT outpu######
 try:
     with open(outputdir + "/status_check" + "/status_check_file.txt", 'r') as f:
@@ -1797,6 +1836,7 @@ try:
             found = re.search(r"parsed MELT output", line)
             if found:
                 count = 1
+                break
             else:
                 continue
             # print(found)
@@ -1819,6 +1859,7 @@ try:
             found = re.search(r"parsed Transurveyor output", line)
             if found:
                 count = 1
+                break
             else:
                 continue
             # print(found)
@@ -1844,6 +1885,7 @@ try:
             found = re.search(r"Merged MELT and Transurveyor output", line)
             if found:
                 count = 1
+                break
             else:
                 continue
             # print(found)
@@ -1862,6 +1904,7 @@ try:
 except:
     print(
         "the status file is not found or  Merge step cannot be performed,\n ")
+    exit()
 
 
 
@@ -1880,6 +1923,7 @@ try:
             found = re.search(r"ran and parsed AnnotSV", line)
             if found:
                 count = 1
+                break
             else:
                 continue
             # print(found)
@@ -1892,7 +1936,8 @@ try:
             try:
                 print("I am here in step10.1")
                 mergedsortedfile
-                annotfullfile,annotallfile = Run_annotSV(AnSVpath, mergedsortedfile, outputdir,hg_ver,50)
+                annotfullfile,annotallfile = Run_annotSV(AnnSVpath, mergedsortedfile, outputdir,hg_ver,50)
+                print(f"AnnotSV Step 10.1 done {annotfullfile} generated")
                 fulinputfileforcord_indv, fulinputfileforonlycord = parse_AnnotSV(annotfullfile, tot_indi,
                                                                                   min_score,
                                                                                   seg_indi,
@@ -1901,12 +1946,13 @@ try:
                 copyinputtable2 = outputdir + "/fullinputtable_only_brkpt.bed"
                 shutil.copy(fulinputfileforcord_indv, copyinputtable1)
                 shutil.copy(fulinputfileforonlycord, copyinputtable2)
-
+                print(f"parse AnnotSV out Step 10.1 done {fulinputfileforcord_indv} generated")
                 #os.system('cp {} {}'.format(inputfileforval, copyinputtable))
             except:
                 print("I am here in step10.2")
                 mergedsortedfile = outputdir + "/mergedfileforAnnotSV.bed"
-                annotfullfile,annotallfile = Run_annotSV(AnSVpath, mergedsortedfile, outputdir,hg_ver,50)
+                annotfullfile,annotallfile = Run_annotSV(AnnSVpath, mergedsortedfile, outputdir,hg_ver,50)
+                print(f"AnnotSV Step 10.2 done {annotfullfile} generated")
                 fulinputfileforcord_indv, fulinputfileforonlycord = parse_AnnotSV(annotfullfile, tot_indi,
                                                                                   min_score,
                                                                                   seg_indi,
@@ -1915,11 +1961,13 @@ try:
                 copyinputtable2 = outputdir + "/fullinputtable_only_brkpt.bed"
                 shutil.copy(fulinputfileforcord_indv, copyinputtable1)
                 shutil.copy(fulinputfileforonlycord, copyinputtable2)
+                print(f"parse AnnotSV out Step 10.2 done {fulinputfileforcord_indv} generated")
                 #os.system('cp {} {}'.format(inputfileforval, copyinputtable))
 
 except:
     print(
         "the status file is not found or AnnotSV step cannot be performed,\n ")
+    exit()
 
 
 #######Call TSD#####
@@ -1947,7 +1995,7 @@ try:
                 print("I am here in step11a")
                 filefor2ndAnnotSV = call_TSD_to_identifybrkpt(fulinputfileforonlycord, cov_dict, SoftBamDir, musclepath, TElib,
                                                                 outputdir, nupro, blastpath,tot_indi)
-                # annotfulltsd, annotalltsdfile = Run_annotSV(AnSVpath, filefor2ndAnnotSV, outputdir,
+                # annotfulltsd, annotalltsdfile = Run_annotSV(AnnSVpath, filefor2ndAnnotSV, outputdir,
                 #                                             hg_ver, "1")
             except:
                 print("I am here in step11b")
@@ -1956,7 +2004,7 @@ try:
                 filefor2ndAnnotSV = call_TSD_to_identifybrkpt(fulinputfileforonlycord, cov_dict, SoftBamDir, musclepath, TElib,
                                                       outputdir, nupro, blastpath,tot_indi)
 
-                # annotfulltsd, annotalltsdfile = Run_annotSV(AnSVpath, filefor2ndAnnotSV, outputdir,
+                # annotfulltsd, annotalltsdfile = Run_annotSV(AnnSVpath, filefor2ndAnnotSV, outputdir,
                 #                                             hg_ver, "1")
 
 
@@ -1964,6 +2012,7 @@ try:
 except:
     print(
         "the status file is not found or TSD finding cannot be performed,\n ")
+    exit()
 
 ##Perform AnnotSV###
 
@@ -1989,7 +2038,7 @@ try:
                 print(filefor2ndAnnotSV)
                 print("I am here in step12a")
 
-                annotfulltsd, annotalltsdfile = Run_annotSV(AnSVpath, filefor2ndAnnotSV, outputdir,
+                annotfulltsd, annotalltsdfile = Run_annotSV(AnnSVpath, filefor2ndAnnotSV, outputdir,
                                                             hg_ver, "1")
                 if (annotfulltsd and annotalltsdfile):
                     with open(outputdir + "/status_check" + "/status_check_file.txt", "a+") as f_obj:
@@ -1999,7 +2048,7 @@ try:
                 print("I am here in step12b")
                 filefor2ndAnnotSV = outputdir + "/filetorunAnSV_2.bed"
 
-                annotfulltsd, annotalltsdfile = Run_annotSV(AnSVpath, filefor2ndAnnotSV, outputdir,
+                annotfulltsd, annotalltsdfile = Run_annotSV(AnnSVpath, filefor2ndAnnotSV, outputdir,
                                                             hg_ver, "1")
                 if (annotfulltsd and annotalltsdfile):
                     with open(outputdir + "/status_check" + "/status_check_file.txt", "a+") as f_obj:
@@ -2010,6 +2059,7 @@ try:
 except:
     print(
         "the status file is not found or ANNOTSV on TSDcandidates cannot be performed,\n ")
+    exit()
 ####Parse ANNOTSV#####
 try:
     with open(outputdir + "/status_check" + "/status_check_file.txt", 'r') as f:
@@ -2019,6 +2069,7 @@ try:
             found = re.search(r"parsed 2nd_AnnotSV output", line)
             if found:
                 count = 1
+                break
             else:
                 continue
             # print(found)
@@ -2068,5 +2119,6 @@ try:
 except:
     print(
         "the status file is not found or parse AnnotSV output cannot be performed,\n ")
+    exit()
 
 
