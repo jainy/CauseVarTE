@@ -9,7 +9,7 @@ Usage:
 
 Python3 Scriptname -conf configfile
 
-Before running the script, update the configfile with the path of the tools and other details. 
+Before running the script, update the configfile with the path of the tools and other details. There is a major update coming to this pipeline...
 
 Please email jainyt@genetics.utah.edu for questions or help 
 
